@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@types/three": "^0.174.0",
+    "three": "^0.174.0"
+  },
+  "devDependencies": {
+    "prettier": "3.5.2"
+  }
+}

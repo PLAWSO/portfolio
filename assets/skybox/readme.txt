@@ -1,0 +1,1 @@
+put skybox down/east/north/south/up/west.png in this folder
