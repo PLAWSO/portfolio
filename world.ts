@@ -1,5 +1,11 @@
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
+import { Rect } from "./src/shapes/Rect";
+import {
+  basicPhysicsInitModel,
+  PhysicsInitModel,
+} from "./src/physics/PhysicsInitModel";
+import { Cuboid } from "./src/shapes/Cuboid";
 
 declare var Ammo: any;
 
@@ -7,16 +13,15 @@ const fov = 90;
 const aspect = window.innerWidth / window.innerHeight;
 const near = 1.0;
 const far = 1000.0;
-const scale = 4
+const scale = 4;
 
 export class World {
-
   // might not need to store these -v keeping in case for now
   collisionConfiguration_: any;
   dispatcher_: any;
   broadphase_: any;
   solver_: any;
-  
+
   physicsWorld_: any;
   threejs_: any;
   camera_: any;
@@ -58,14 +63,6 @@ export class World {
       "./assets/skybox/south.png",
     ]);
     this.scene_.background = texture;
-
-    const ground = new THREE.Mesh(
-      new THREE.BoxGeometry(100, 1, 100),
-      new THREE.MeshStandardMaterial({ color: 0x404040 }),
-    );
-    ground.castShadow = false;
-    ground.receiveShadow = true;
-    this.scene_.add(ground);
 
     this.rigidBodies_ = [];
 
@@ -114,7 +111,10 @@ export class World {
   onWindowResize_() {
     this.camera_.aspect = window.innerWidth / window.innerHeight;
     this.camera_.updateProjectionMatrix();
-    this.threejs_.setSize(window.innerWidth / scale, window.innerHeight / scale);
+    this.threejs_.setSize(
+      window.innerWidth / scale,
+      window.innerHeight / scale,
+    );
   }
 
   startCamera() {
@@ -195,5 +195,20 @@ export class World {
       this.rigidBodies_[i].mesh.position.copy(pos3);
       this.rigidBodies_[i].mesh.quaternion.copy(quat3);
     }
+  }
+
+  createBox(
+    size?: Rect,
+    physicsInit?: PhysicsInitModel,
+    position?: any,
+    quat?: any,
+    color?: number,
+  ) {
+    const box = new Cuboid(size, physicsInit, position, quat, color);
+    this.scene_.add(box);
+    this.physicsWorld_.addRigidBody(box.ammoObj.body_);
+    this.rigidBodies_.push({ mesh: box, rigidBody: box.ammoObj });
+
+    return box;
   }
 }
