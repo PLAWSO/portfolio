@@ -1,13 +1,10 @@
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
-import { Rect } from "./src/shapes/Rect";
-import {
-  basicPhysicsInitModel,
-  PhysicsInitModel,
-} from "./src/physics/PhysicsInitModel";
+import { CuboidShape, CylinderShape } from "./src/shapes/ObjectShapes";
+import { PhysicsInitModel } from "./src/physics/PhysicsInitModel";
 import { Cuboid } from "./src/shapes/Cuboid";
-
-declare var Ammo: any;
+import * as CANNON from "cannon-es";
+import { Cylinder } from "./src/shapes/Cylinder";
 
 const fov = 90;
 const aspect = window.innerWidth / window.innerHeight;
@@ -15,40 +12,38 @@ const near = 1.0;
 const far = 1000.0;
 const scale = 4;
 
-export class World {
-  // might not need to store these -v keeping in case for now
-  collisionConfiguration_: any;
-  dispatcher_: any;
-  broadphase_: any;
-  solver_: any;
+interface PhysicsObject {
+  mesh: any;
+  rigidBody: any;
+}
 
-  physicsWorld_: any;
-  threejs_: any;
-  camera_: any;
-  scene_: any;
-  rigidBodies_: any[];
-  tmpTransform_: any;
-  previousRAF_: any;
+export class World {
+  physicsWorld: any;
+  threejs: any;
+  camera: any;
+  scene: any;
+  physicsObjects: PhysicsObject[];
   lastSecondFrames: number = 0;
+  totalFrames: number = 0;
 
   constructor() {
     this.initialize();
   }
 
   initialize() {
-    this.startAmmo();
+    this.startCannon();
 
     this.startScene();
 
     this.startCamera();
 
-    this.scene_ = new THREE.Scene();
+    this.scene = new THREE.Scene();
 
     this.startEnvLight();
 
     this.startFrameRateCounter();
 
-    const controls = new MapControls(this.camera_, this.threejs_.domElement);
+    const controls = new MapControls(this.camera, this.threejs.domElement);
     controls.enableDamping = true;
     controls.target.set(0, 20, 0);
     controls.update();
@@ -62,42 +57,28 @@ export class World {
       "./assets/skybox/north.png",
       "./assets/skybox/south.png",
     ]);
-    this.scene_.background = texture;
+    this.scene.background = texture;
 
-    this.rigidBodies_ = [];
-
-    this.tmpTransform_ = new Ammo.btTransform();
-
-    this.previousRAF_ = null;
+    this.physicsObjects = [];
 
     this.startRender();
   }
 
-  startAmmo() {
-    this.collisionConfiguration_ = new Ammo.btDefaultCollisionConfiguration();
-    this.dispatcher_ = new Ammo.btCollisionDispatcher(
-      this.collisionConfiguration_,
-    );
-    this.broadphase_ = new Ammo.btDbvtBroadphase();
-    this.solver_ = new Ammo.btSequentialImpulseConstraintSolver();
-    this.physicsWorld_ = new Ammo.btDiscreteDynamicsWorld(
-      this.dispatcher_,
-      this.broadphase_,
-      this.solver_,
-      this.collisionConfiguration_,
-    );
-    this.physicsWorld_.setGravity(new Ammo.btVector3(0, -100, 0));
+  startCannon() {
+    this.physicsWorld = new CANNON.World({
+      gravity: new CANNON.Vec3(0, -100, 0),
+    });
   }
 
   startScene() {
-    this.threejs_ = new THREE.WebGLRenderer({
+    this.threejs = new THREE.WebGLRenderer({
       antialias: false,
     });
-    this.threejs_.shadowMap.enabled = true;
-    this.threejs_.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.threejs_.shadowMap.enabled = true;
+    this.threejs.shadowMap.enabled = true;
+    this.threejs.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.threejs.shadowMap.enabled = true;
 
-    document.body.appendChild(this.threejs_.domElement);
+    document.body.appendChild(this.threejs.domElement);
 
     window.addEventListener(
       "resize",
@@ -109,17 +90,14 @@ export class World {
   }
 
   onWindowResize_() {
-    this.camera_.aspect = window.innerWidth / window.innerHeight;
-    this.camera_.updateProjectionMatrix();
-    this.threejs_.setSize(
-      window.innerWidth / scale,
-      window.innerHeight / scale,
-    );
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.threejs.setSize(window.innerWidth / scale, window.innerHeight / scale);
   }
 
   startCamera() {
-    this.camera_ = new THREE.PerspectiveCamera(fov, aspect, near, far);
-    this.camera_.position.set(75, 20, 0);
+    this.camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    this.camera.position.set(75, 20, 0);
     this.onWindowResize_();
   }
 
@@ -139,10 +117,10 @@ export class World {
     light.shadow.camera.right = -100;
     light.shadow.camera.top = 100;
     light.shadow.camera.bottom = -100;
-    this.scene_.add(light);
+    this.scene.add(light);
 
     let ambientLight = new THREE.AmbientLight(0x101010);
-    this.scene_.add(ambientLight);
+    this.scene.add(ambientLight);
   }
 
   startFrameRateCounter() {
@@ -161,54 +139,65 @@ export class World {
 
   doAnimationFrame() {
     requestAnimationFrame((t) => {
-      if (this.previousRAF_ === null) {
-        this.previousRAF_ = t;
-      }
-
-      this.doPhysicsStep(t - this.previousRAF_);
-      this.threejs_.render(this.scene_, this.camera_);
-      this.doAnimationFrame();
-      this.previousRAF_ = t;
+      this.doPhysicsStep();
+      this.threejs.render(this.scene, this.camera);
       this.lastSecondFrames++;
+      this.totalFrames++;
+      this.doAnimationFrame();
     });
   }
 
-  doPhysicsStep(timeElapsed) {
-    const timeElapsedS = timeElapsed * 0.001;
+  doPhysicsStep() {
+    this.physicsWorld.fixedStep();
 
-    this.physicsWorld_.stepSimulation(timeElapsedS, 10);
-
-    for (let i = 0; i < this.rigidBodies_.length; ++i) {
-      this.rigidBodies_[i].rigidBody.motionState_.getWorldTransform(
-        this.tmpTransform_,
+    for (let i = 0; i < this.physicsObjects.length; ++i) {
+      this.physicsObjects[i].mesh.position.copy(
+        this.physicsObjects[i].rigidBody.position,
       );
-      const pos = this.tmpTransform_.getOrigin();
-      const quat = this.tmpTransform_.getRotation();
-      const pos3 = new THREE.Vector3(pos.x(), pos.y(), pos.z());
-      const quat3 = new THREE.Quaternion(
-        quat.x(),
-        quat.y(),
-        quat.z(),
-        quat.w(),
+      this.physicsObjects[i].mesh.quaternion.copy(
+        this.physicsObjects[i].rigidBody.quaternion,
       );
-
-      this.rigidBodies_[i].mesh.position.copy(pos3);
-      this.rigidBodies_[i].mesh.quaternion.copy(quat3);
+      // if (this.totalFrames % 480 == 0 && i == 0) {
+      //   console.log("POS: ", this.physicsObjects[i].rigidBody.quaternion);
+      // }
     }
   }
 
   createBox(
-    size?: Rect,
+    size?: CuboidShape,
     physicsInit?: PhysicsInitModel,
     position?: any,
-    quat?: any,
     color?: number,
+    rotation?: THREE.Vector3,
   ) {
-    const box = new Cuboid(size, physicsInit, position, quat, color);
-    this.scene_.add(box);
-    this.physicsWorld_.addRigidBody(box.ammoObj.body_);
-    this.rigidBodies_.push({ mesh: box, rigidBody: box.ammoObj });
+    const box = new Cuboid(size, physicsInit, position, color, rotation);
+    this.scene.add(box);
+    console.log("ADDING BOX: ", box.cannonObj);
+    if (physicsInit) {
+      this.physicsWorld.addBody(box.cannonObj);
+      this.physicsObjects.push({ mesh: box, rigidBody: box.cannonObj });
+    }
 
     return box;
+  }
+
+  createCylinder(
+    size?: CylinderShape,
+    physicsInit?: PhysicsInitModel,
+    position?: any,
+    color?: number,
+    rotation?: THREE.Vector3,
+  ) {
+    const cylinder = new Cylinder(size, physicsInit, position, color, rotation);
+    this.scene.add(cylinder);
+    console.log("ADDING CYLINDER: ", cylinder.cannonObj);
+    if (physicsInit) {
+      this.physicsWorld.addBody(cylinder.cannonObj);
+      this.physicsObjects.push({
+        mesh: cylinder,
+        rigidBody: cylinder.cannonObj,
+      });
+    }
+    return cylinder;
   }
 }

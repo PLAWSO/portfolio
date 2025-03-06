@@ -1,4 +1,3 @@
-1;
 export class PhysicsInitModel {
   restitution: number;
   friction: number;

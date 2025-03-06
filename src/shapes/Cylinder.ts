@@ -1,28 +1,35 @@
 import * as THREE from "three";
-import { CuboidShape } from "./ObjectShapes";
+import { CylinderShape } from "./ObjectShapes";
 import { PhysicsInitModel } from "../physics/PhysicsInitModel";
 import * as CANNON from "cannon-es";
 
-export class Cuboid extends THREE.Mesh {
+export class Cylinder extends THREE.Mesh {
   cannonObj: any = null;
 
   constructor(
-    size: CuboidShape = new CuboidShape(1, 1, 1),
+    size: CylinderShape = new CylinderShape(1, 1, 1, 16),
     physicsInit: PhysicsInitModel | undefined,
     position: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
     color: number = 0x00ff00,
     rotation: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
   ) {
     super(
-      new THREE.BoxGeometry(size.width, size.height, size.depth),
+      new THREE.CylinderGeometry(
+        size.radiusTop,
+        size.radiusBottom,
+        size.height,
+        size.radialSegments,
+        32,
+      ),
       new THREE.MeshStandardMaterial({ color: color }),
     );
 
+    // setup mesh
     this.castShadow = true;
     this.receiveShadow = true;
     this.position.copy(position);
-    // TODO: figure out how to apply rotation directly to mesh
 
+    // setup rigidbody
     if (physicsInit) {
       this.createCannonObject(physicsInit, size, rotation);
     }
@@ -30,12 +37,15 @@ export class Cuboid extends THREE.Mesh {
 
   createCannonObject(
     physicsInit: PhysicsInitModel,
-    size: CuboidShape,
+    size: CylinderShape,
     rotation: THREE.Vector3,
   ) {
     this.cannonObj = new CANNON.Body({
-      shape: new CANNON.Box(
-        new CANNON.Vec3(size.width / 2, size.height / 2, size.depth / 2),
+      shape: new CANNON.Cylinder(
+        size.radiusTop,
+        size.radiusBottom,
+        size.height,
+        size.radialSegments,
       ),
       mass: physicsInit.mass,
       position: new CANNON.Vec3(
