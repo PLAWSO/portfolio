@@ -2,20 +2,26 @@ import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
 import { CuboidShape, CylinderShape } from "./src/shapes/ObjectShapes";
 import { PhysicsInitModel } from "./src/physics/PhysicsInitModel";
+import { SpringInitModel } from "./src/physics/SpringInitModel";
 import { Cuboid } from "./src/shapes/Cuboid";
 import * as CANNON from "cannon-es";
 import { Cylinder } from "./src/shapes/Cylinder";
+import cannonDebugger from "cannon-es-debugger";
 
 const fov = 90;
 const aspect = window.innerWidth / window.innerHeight;
 const near = 1.0;
 const far = 1000.0;
-const scale = 4;
-const doPhysics = true;
+const scale = 1;
 
 interface PhysicsObject {
   mesh: THREE.Mesh;
   rigidBody: CANNON.Body;
+}
+
+interface SpringHelper {
+  line: THREE.Line;
+  spring: CANNON.Spring;
 }
 
 export class World {
@@ -29,6 +35,10 @@ export class World {
 
   lastSecondFrames = 0;
   totalFrames = 0;
+  cannonDebugger: any = null;
+  doPhysics: boolean = true;
+  frameRate: number = 60;
+  springHelpers: SpringHelper[] = [];
 
   constructor() {
     this.initialize();
@@ -65,12 +75,20 @@ export class World {
 
     this.physicsObjects = [];
 
+    this.startCannonDebug();
+
     this.startRender();
   }
 
   startCannon() {
     this.physicsWorld = new CANNON.World({
       gravity: new CANNON.Vec3(0, -100, 0),
+    });
+  }
+
+  startCannonDebug() {
+    this.cannonDebugger = cannonDebugger(this.scene, this.physicsWorld, {
+      color: 0xafafaf,
     });
   }
 
@@ -143,13 +161,29 @@ export class World {
 
   doAnimationFrame() {
     requestAnimationFrame((t) => {
-      if (doPhysics) {
+      if (this.doPhysics) {
         this.doPhysicsStep();
+        if (this.cannonDebugger) {
+          this.cannonDebugger.update();
+          this.updateSpringHelpers();
+        }
       }
+
       this.threejs.render(this.scene, this.camera);
       this.lastSecondFrames++;
       this.totalFrames++;
       this.doAnimationFrame();
+    });
+  }
+
+  updateSpringHelpers() {
+    this.springHelpers.forEach((springHelper) => {
+      const bodyAPos = springHelper.spring.bodyA.position;
+      const bodyBPos = springHelper.spring.bodyB.position;
+      springHelper.line.geometry.setFromPoints([
+        new THREE.Vector3(bodyAPos.x, bodyAPos.y, bodyAPos.z),
+        new THREE.Vector3(bodyBPos.x, bodyBPos.y, bodyBPos.z),
+      ]);
     });
   }
 
@@ -159,13 +193,16 @@ export class World {
     this.physicsObjects.forEach((physicsObj, i) => {
       physicsObj.mesh.position.copy(physicsObj.rigidBody.position);
       physicsObj.mesh.quaternion.copy(physicsObj.rigidBody.quaternion);
-      // if (this.totalFrames % 480 == 0 && i == 0) {
-      //   console.log("POS: ", this.physicsObjects[i].rigidBody.quaternion);
+      // if (this.totalFrames % this.frameRate == 0 && i == 0) {
+      //   console.log("POS: ", physicsObj.rigidBody.quaternion);
       // }
     });
 
-    this.springs.forEach((spring) => {
+    this.springs.forEach((spring, i) => {
       spring.applyForce();
+      // if (this.totalFrames % this.frameRate == 0 && i == 0) {
+      //   console.log("POS: ", spring);
+      // }
     });
   }
 
@@ -178,7 +215,7 @@ export class World {
   ) {
     const box = new Cuboid(size, physicsInit, position, color, rotation);
     this.scene.add(box);
-    console.log("ADDING BOX: ", box.cannonObj);
+    console.log("ADDING BOX: ", box);
     if (physicsInit) {
       this.physicsWorld.addBody(box.cannonObj);
       this.physicsObjects.push({ mesh: box, rigidBody: box.cannonObj });
@@ -196,7 +233,7 @@ export class World {
   ) {
     const cylinder = new Cylinder(size, physicsInit, position, color, rotation);
     this.scene.add(cylinder);
-    console.log("ADDING CYLINDER: ", cylinder.cannonObj);
+    console.log("ADDING CYLINDER: ", cylinder);
     if (physicsInit) {
       this.physicsWorld.addBody(cylinder.cannonObj);
       this.physicsObjects.push({
@@ -205,5 +242,36 @@ export class World {
       });
     }
     return cylinder;
+  }
+
+  createSpring(
+    bodyA: CANNON.Body,
+    bodyB: CANNON.Body,
+    options: SpringInitModel,
+  ) {
+    const spring = new CANNON.Spring(bodyA, bodyB, {
+      restLength: options.restLength,
+      stiffness: options.stiffness,
+      damping: options.damping,
+    });
+    this.springs.push(spring);
+    console.log("ADDING SPRING: ", spring);
+
+    if (this.cannonDebugger) {
+      const bodyAPos = spring.bodyA.position;
+      const bodyBPos = spring.bodyB.position;
+      const geometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(bodyAPos.x, bodyAPos.y, bodyAPos.z),
+        new THREE.Vector3(bodyBPos.x, bodyBPos.y, bodyBPos.z),
+      ]);
+      const springLine = new THREE.Line(
+        geometry,
+        new THREE.LineBasicMaterial({ color: 0xff0000 }),
+      );
+      this.scene.add(springLine);
+      this.springHelpers.push({ line: springLine, spring });
+    }
+
+    return spring;
   }
 }
