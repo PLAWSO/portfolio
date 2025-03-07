@@ -11,20 +11,24 @@ const aspect = window.innerWidth / window.innerHeight;
 const near = 1.0;
 const far = 1000.0;
 const scale = 4;
+const doPhysics = true;
 
 interface PhysicsObject {
-  mesh: any;
-  rigidBody: any;
+  mesh: THREE.Mesh;
+  rigidBody: CANNON.Body;
 }
 
 export class World {
-  physicsWorld: any;
-  threejs: any;
-  camera: any;
-  scene: any;
-  physicsObjects: PhysicsObject[];
-  lastSecondFrames: number = 0;
-  totalFrames: number = 0;
+  physicsWorld: CANNON.World;
+  threejs: THREE.WebGLRenderer;
+  camera: THREE.PerspectiveCamera;
+  scene: THREE.Scene;
+
+  physicsObjects: PhysicsObject[] = [];
+  springs: CANNON.Spring[] = [];
+
+  lastSecondFrames = 0;
+  totalFrames = 0;
 
   constructor() {
     this.initialize();
@@ -139,7 +143,9 @@ export class World {
 
   doAnimationFrame() {
     requestAnimationFrame((t) => {
-      this.doPhysicsStep();
+      if (doPhysics) {
+        this.doPhysicsStep();
+      }
       this.threejs.render(this.scene, this.camera);
       this.lastSecondFrames++;
       this.totalFrames++;
@@ -150,17 +156,17 @@ export class World {
   doPhysicsStep() {
     this.physicsWorld.fixedStep();
 
-    for (let i = 0; i < this.physicsObjects.length; ++i) {
-      this.physicsObjects[i].mesh.position.copy(
-        this.physicsObjects[i].rigidBody.position,
-      );
-      this.physicsObjects[i].mesh.quaternion.copy(
-        this.physicsObjects[i].rigidBody.quaternion,
-      );
+    this.physicsObjects.forEach((physicsObj, i) => {
+      physicsObj.mesh.position.copy(physicsObj.rigidBody.position);
+      physicsObj.mesh.quaternion.copy(physicsObj.rigidBody.quaternion);
       // if (this.totalFrames % 480 == 0 && i == 0) {
       //   console.log("POS: ", this.physicsObjects[i].rigidBody.quaternion);
       // }
-    }
+    });
+
+    this.springs.forEach((spring) => {
+      spring.applyForce();
+    });
   }
 
   createBox(

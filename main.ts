@@ -3,6 +3,7 @@ import { Cuboid } from "./src/shapes/Cuboid";
 import { CuboidShape, CylinderShape } from "./src/shapes/ObjectShapes";
 import { World } from "./world";
 import {
+  basicHeavyPhysicsInitModel,
   basicPhysicsInitModel,
   staticPhysicsInitModel,
 } from "./src/physics/PhysicsInitModel";
@@ -120,13 +121,37 @@ function startScene() {
   // });
 
   character = world.createCylinder(
-    new CylinderShape(5, 5, 5, 16),
-    basicPhysicsInitModel,
+    new CylinderShape(5, 5, 5, 160),
+    basicHeavyPhysicsInitModel,
     new THREE.Vector3(10, 10, 0),
     0x0000ff,
+    new THREE.Vector3(Math.PI / 2, 0, 0),
   );
 
-  // setInterval(() => {
-  //   console.log("BLUE: ", blueBox.position);
-  // }, 1000);
+  const buddyCube = world.createBox(
+    new CuboidShape(2, 2, 2),
+    basicPhysicsInitModel,
+    new THREE.Vector3(10, 10, 5),
+    0x00ff00,
+  );
+
+  // const group = new THREE.Group();
+  // group.add(character);
+  // group.add(buddyCube);
+
+  // world.scene.add(group);
+
+  const suspensionSpring = new CANNON.Spring(character.cannonObj, buddyCube.cannonObj, {
+    restLength: 0.5,  // Distance when uncompressed
+    stiffness: 50,     // How strong the spring is
+    damping: 2         // Controls how much the spring resists motion
+  });
+
+  world.springs.push(suspensionSpring);
+
+  // world.physicsWorld.addBody(suspensionSpring);
+
+  setInterval(() => {
+    console.log("CHAR: ", character.position);
+  }, 1000);
 }
