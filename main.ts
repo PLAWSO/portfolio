@@ -8,9 +8,7 @@ import {
 } from "./src/physics/PhysicsInitModel";
 import * as CANNON from "cannon-es";
 import * as THREE from "three";
-import {
-  basicLongSpringInitModel,
-} from "./src/physics/SpringInitModel";
+import { basicLongSpringInitModel, basicLongStrongSpringInitModel } from "./src/physics/SpringInitModel";
 
 let character: any;
 
@@ -51,7 +49,7 @@ setInterval(() => {
   }
   if (pressedKeys[" "]) {
     character.cannonObj.applyImpulse(
-      new CANNON.Vec3(0, 1, 0),
+      new CANNON.Vec3(0, 5, 0),
       new CANNON.Vec3(0, 0, 0),
     );
   }
@@ -97,26 +95,245 @@ function startScene() {
     0x404040,
   );
 
-  character = world.createCylinder(
-    new CylinderShape(5, 5, 5, 160),
-    basicHeavyPhysicsInitModel,
-    new THREE.Vector3(10, 10, 0),
+  // character = world.createCylinder(
+  //   new CylinderShape(5, 5, 5, 160),
+  //   basicHeavyPhysicsInitModel,
+  //   new THREE.Vector3(10, 10, 0),
+  //   0x0000ff,
+  //   new THREE.Vector3(Math.PI / 2, 0, 0),
+  // );
+
+  // const buddyCube = world.createBox(
+  //   new CuboidShape(2, 2, 2),
+  //   basicPhysicsInitModel,
+  //   new THREE.Vector3(10, 10, 5),
+  //   0x00ff00,
+  // );
+
+  // const spring = world.createSpring(
+  //   character.cannonObj,
+  //   buddyCube.cannonObj,
+  //   basicLongSpringInitModel,
+  // );
+
+  // const brick = world.createBox(
+  //   new CuboidShape(10, 6, 6),
+  //   staticPhysicsInitModel,
+  //   new THREE.Vector3(0, 10, 0),
+  //   0x0000ff,
+  // );
+
+  // const dfWheel = world.createCylinder(
+  //   new CylinderShape(2, 2, 2, 8),
+  //   basicPhysicsInitModel,
+  //   new THREE.Vector3(-4, 8, 5),
+  //   0x0000ff,
+  //   new THREE.Vector3(Math.PI / 2, 0, 0),
+  // );
+
+  // character = world.createCylinder(
+  //   new CylinderShape(2, 2, 2, 8),
+  //   basicPhysicsInitModel,
+  //   new THREE.Vector3(4, 8, 5),
+  //   0x0000ff,
+  //   new THREE.Vector3(Math.PI / 2, 0, 0),
+  // );
+
+  // const pfWheel = world.createCylinder(
+  //   new CylinderShape(2, 2, 2, 8),
+  //   basicPhysicsInitModel,
+  //   new THREE.Vector3(-4, 8, -5),
+  //   0x0000ff,
+  //   new THREE.Vector3(Math.PI / 2, 0, 0),
+  // );
+
+  // const prWheel = world.createCylinder(
+  //   new CylinderShape(2, 2, 2, 8),
+  //   basicPhysicsInitModel,
+  //   new THREE.Vector3(4, 8, -5),
+  //   0x0000ff,
+  //   new THREE.Vector3(Math.PI / 2, 0, 0),
+  // );
+
+  // const lock = new CANNON.LockConstraint(
+  //   character.cannonObj,
+  //   dfWheel.cannonObj,
+  // );
+
+  // world.physicsWorld.addConstraint(lock);
+
+
+  // const localPivotA = new CANNON.Vec3(10, 0, 0);
+  // const localPivotB = new CANNON.Vec3(0, 0, 0);
+  // const ptp = new CANNON.PointToPointConstraint(character.cannonObj, localPivotA, drWheel.cannonObj, localPivotB);
+  // world.physicsWorld.addConstraint(ptp);
+
+  // kinda working example
+  // const hinge = new CANNON.HingeConstraint(
+  //   brick.cannonObj,
+  //   character.cannonObj,
+  //   {
+  //     pivotA: new CANNON.Vec3(4, -1, -4),
+  //     axisA: new CANNON.Vec3(1, 0, 0),
+  //     pivotB: new CANNON.Vec3(10, 0, 0),
+  //     axisB: new CANNON.Vec3(0, 1, 0),
+  //     collideConnected: false,
+  //   }
+  // )
+
+  character = world.createBox(
+    new CuboidShape(5, 10, 5),
+    basicPhysicsInitModel,
+    new THREE.Vector3(20, 20, 20),
     0x0000ff,
-    new THREE.Vector3(Math.PI / 2, 0, 0),
+  )
+
+  const body = world.createBox(
+    new CuboidShape(50, 30, 30),
+    basicHeavyPhysicsInitModel,
+    new THREE.Vector3(0, 20, 0),
+    0x0000ff,
   );
 
-  const buddyCube = world.createBox(
-    new CuboidShape(2, 2, 2),
-    basicPhysicsInitModel,
-    new THREE.Vector3(10, 10, 5),
-    0x00ff00,
+  // const hinge = new CANNON.HingeConstraint(
+  //   brick.cannonObj,
+  //   character.cannonObj,
+  //   {
+  //     pivotA: new CANNON.Vec3(4, -1, -4),
+  //     axisA: new CANNON.Vec3(1, 0, 0),
+  //     pivotB: new CANNON.Vec3(10, 0, 0),
+  //     axisB: new CANNON.Vec3(0, 1, 0),
+  //     collideConnected: false,
+  //   }
+  // )
+
+  // world.physicsWorld.addConstraint(hinge);
+
+  const topHubTrackingPoint = world.createTrackingPoint(
+    character,
+    new THREE.Vector3(0, 5, 0),
+    0xff0000,
   );
+
+  // const topFrontHubTrackingPoint = world.createTrackingPoint(
+  //   character,
+  //   new THREE.Vector3(-0.5, 0.5, 0),
+  //   0xff0000,
+  // );
+
+  // const bottomHubTrackingPoint = world.createTrackingPoint(
+  //   character,
+  //   new THREE.Vector3(0, -5, 0),
+  //   0xff0000,
+  // );
+
+  // const topBodyTrackingPoint = world.createTrackingPoint(
+  //   body,
+  //   new THREE.Vector3(20, 0, 12),
+  //   0xff0000,
+  // );
+
+  const upperControlArm = world.createBox(
+    new CuboidShape(1, 10, 1),
+    basicPhysicsInitModel,
+    new THREE.Vector3(20, 50, 12),
+    0x0000ff,
+  );
+
+  const lowerControlArm = world.createBox(
+    new CuboidShape(1, 10, 1),
+    basicPhysicsInitModel,
+    new THREE.Vector3(20, 50, 10),
+    0x0000ff,
+  );
+
+  // const ucaTopTrackingPoint = world.createTrackingPoint(
+  //   upperControlArm,
+  //   new THREE.Vector3(0, 5, 0),
+  //   0xff0000,
+  // );
+
+  
+
+  // const bottomFrontHubTrackingPoint = world.createTrackingPoint(
+  //   character,
+  //   new THREE.Vector3(-0.5, -0.5, 0),
+  //   0xff0000,
+  // );
+
+  const hingeUCAtoHub = new CANNON.HingeConstraint(
+    upperControlArm.cannonObj,
+    character.cannonObj,
+    {
+      pivotA: new CANNON.Vec3(0, 5, 0),
+      axisA: new CANNON.Vec3(1, 0, 0),
+      pivotB: new CANNON.Vec3(0, 5, 0),
+      axisB: new CANNON.Vec3(1, 0, 0),
+      collideConnected: false,
+    }
+  )
+
+  const hingeUCAtoBody = new CANNON.HingeConstraint(
+    upperControlArm.cannonObj,
+    body.cannonObj,
+    {
+      pivotA: new CANNON.Vec3(0, -5, 0),
+      axisA: new CANNON.Vec3(1, 0, 0),
+      pivotB: new CANNON.Vec3(20, 0, 12),
+      axisB: new CANNON.Vec3(1, 0, 0),
+      collideConnected: false,
+    }
+  )
+
+  const hingeLCAtoHub = new CANNON.HingeConstraint(
+    lowerControlArm.cannonObj,
+    character.cannonObj,
+    {
+      pivotA: new CANNON.Vec3(0, 5, 0),
+      axisA: new CANNON.Vec3(1, 0, 0),
+      pivotB: new CANNON.Vec3(0, -5, 0),
+      axisB: new CANNON.Vec3(1, 0, 0),
+      collideConnected: false,
+      maxForce: Number.MAX_SAFE_INTEGER,
+    }
+  )
+
+  const hingeLCAtoBody = new CANNON.HingeConstraint(
+    lowerControlArm.cannonObj,
+    body.cannonObj,
+    {
+      pivotA: new CANNON.Vec3(0, -5, 0),
+      axisA: new CANNON.Vec3(1, 0, 0),
+      pivotB: new CANNON.Vec3(20, -10, 12),
+      axisB: new CANNON.Vec3(1, 0, 0),
+      collideConnected: false,
+      maxForce: Number.MAX_SAFE_INTEGER,
+    }
+  )
+
+  world.physicsWorld.addConstraint(hingeUCAtoHub);
+  world.physicsWorld.addConstraint(hingeUCAtoBody);
+  world.physicsWorld.addConstraint(hingeLCAtoHub);
+  world.physicsWorld.addConstraint(hingeLCAtoBody);
 
   const spring = world.createSpring(
     character.cannonObj,
-    buddyCube.cannonObj,
-    basicLongSpringInitModel,
+    body.cannonObj,
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(20, 20, 0),
+    basicLongStrongSpringInitModel,
   );
+
+  // const topFrontTrackingPoint = world.createTrackingPoint(
+  //   hub,
+  //   new THREE.Vector3(0, 0, 3),
+  //   0xff0000,
+  // );
+
+
+
+
+
 
   // setInterval(() => {
   //   console.log("CHAR: ", character.position);

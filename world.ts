@@ -22,6 +22,14 @@ interface PhysicsObject {
 interface SpringHelper {
   line: THREE.Line;
   spring: CANNON.Spring;
+  bodyAOffset: THREE.Vector3;
+  bodyBOffset: THREE.Vector3;
+}
+
+interface TrackingPoint {
+  objectToTrack: THREE.Mesh;
+  trackingPoint: THREE.Mesh;
+  offset: THREE.Vector3;
 }
 
 export class World {
@@ -32,6 +40,7 @@ export class World {
 
   physicsObjects: PhysicsObject[] = [];
   springs: CANNON.Spring[] = [];
+  trackingPoints: TrackingPoint[] = [];
 
   lastSecondFrames = 0;
   totalFrames = 0;
@@ -168,6 +177,10 @@ export class World {
           this.updateSpringHelpers();
         }
       }
+      
+      if (true) {
+        this.updateNonPhysicsHelpers();
+      }
 
       this.threejs.render(this.scene, this.camera);
       this.lastSecondFrames++;
@@ -176,13 +189,21 @@ export class World {
     });
   }
 
+  updateNonPhysicsHelpers() {
+    this.trackingPoints.forEach((trackingPoint) => {
+      trackingPoint.trackingPoint.position.copy(trackingPoint.objectToTrack.position);
+      trackingPoint.trackingPoint.position.add(trackingPoint.offset);
+    });
+
+  }
+
   updateSpringHelpers() {
     this.springHelpers.forEach((springHelper) => {
       const bodyAPos = springHelper.spring.bodyA.position;
       const bodyBPos = springHelper.spring.bodyB.position;
       springHelper.line.geometry.setFromPoints([
-        new THREE.Vector3(bodyAPos.x, bodyAPos.y, bodyAPos.z),
-        new THREE.Vector3(bodyBPos.x, bodyBPos.y, bodyBPos.z),
+        new THREE.Vector3(bodyAPos.x, bodyAPos.y, bodyAPos.z).add(springHelper.bodyAOffset),
+        new THREE.Vector3(bodyBPos.x, bodyBPos.y, bodyBPos.z).add(springHelper.bodyBOffset),
       ]);
     });
   }
@@ -244,12 +265,38 @@ export class World {
     return cylinder;
   }
 
+  createLine(pointA: THREE.Vector3, pointB: THREE.Vector3) {}
+
+  createTrackingPoint(
+    object: THREE.Mesh,
+    offset: THREE.Vector3,
+    color: number = 0xff0000,
+  ) {
+    const trackingPoint = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5),
+      new THREE.MeshBasicMaterial({ color, depthTest: false }),
+    );
+    trackingPoint.renderOrder = 1;
+    trackingPoint.position.copy(object.position);
+    trackingPoint.position.add(offset);
+    console.log("ADDING TRACKING POINT: ", trackingPoint);
+    
+    this.scene.add(trackingPoint);
+    this.trackingPoints.push({ trackingPoint, offset, objectToTrack: object });
+
+    return trackingPoint;
+  }
+
   createSpring(
     bodyA: CANNON.Body,
     bodyB: CANNON.Body,
+    bodyAOffset: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
+    bodyBOffset: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
     options: SpringInitModel,
   ) {
     const spring = new CANNON.Spring(bodyA, bodyB, {
+      localAnchorA: new CANNON.Vec3(bodyAOffset.x, bodyAOffset.y, bodyAOffset.z),
+      localAnchorB: new CANNON.Vec3(bodyBOffset.x, bodyBOffset.y, bodyBOffset.z),
       restLength: options.restLength,
       stiffness: options.stiffness,
       damping: options.damping,
@@ -269,7 +316,7 @@ export class World {
         new THREE.LineBasicMaterial({ color: 0xff0000 }),
       );
       this.scene.add(springLine);
-      this.springHelpers.push({ line: springLine, spring });
+      this.springHelpers.push({ line: springLine, spring, bodyAOffset, bodyBOffset });
     }
 
     return spring;
