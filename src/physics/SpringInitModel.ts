@@ -12,4 +12,4 @@ export class SpringInitModel {
 
 export const basicSpringInitModel = new SpringInitModel(5, 50, 2);
 export const basicLongSpringInitModel = new SpringInitModel(25, 50, 2);
-export const basicLongStrongSpringInitModel = new SpringInitModel(50, 175, 5);
+export const basicLongStrongSpringInitModel = new SpringInitModel(50, 600, 0);
